@@ -22,7 +22,7 @@ A spotlight replacement.
 ### Installation
 
 ```bash
-git clone https://github.com/ironic1234/mofi.git
+git clone https://github.com/ronakpjain/mofi.git
 cd mofi
 npm install
 ```
