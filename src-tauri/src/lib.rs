@@ -1,8 +1,8 @@
-use std::process::Command;
-use std::fs;
-use std::path::PathBuf;
-use std::path::Path;
 use serde::{Deserialize, Serialize};
+use std::fs;
+use std::path::Path;
+use std::path::PathBuf;
+use std::process::Command;
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct ColorConfig {
@@ -25,8 +25,62 @@ impl Default for ColorConfig {
     }
 }
 
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct AppInfo {
+    pub name: String,
+    pub path: String,
+}
+
+/// Recursively search for .app bundles in a directory
+fn find_apps_recursive(dir: &Path, apps: &mut Vec<AppInfo>) -> std::io::Result<()> {
+    if let Ok(entries) = fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+
+            if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                // If this is an .app bundle, add it
+                if name.ends_with(".app") {
+                    let app_name = name.trim_end_matches(".app").to_string();
+                    let full_path = path.to_string_lossy().to_string();
+                    apps.push(AppInfo {
+                        name: app_name,
+                        path: full_path,
+                    });
+                }
+                // Recursively search subdirectories (but not inside .app bundles)
+                else if path.is_dir() && !name.starts_with('.') {
+                    // Avoid descending too deep into system directories
+                    // but allow one level of nesting (e.g., Applications/Folder/App.app)
+                    if let Ok(subdirs) = fs::read_dir(&path) {
+                        let mut has_app = false;
+                        for subentry in subdirs.flatten() {
+                            let subpath = subentry.path();
+                            if let Some(subname) = subpath.file_name().and_then(|n| n.to_str()) {
+                                if subname.ends_with(".app") {
+                                    has_app = true;
+                                    let app_name = subname.trim_end_matches(".app").to_string();
+                                    let full_path = subpath.to_string_lossy().to_string();
+                                    apps.push(AppInfo {
+                                        name: app_name,
+                                        path: full_path,
+                                    });
+                                }
+                            }
+                        }
+                        // Only recursively search if this directory didn't contain apps
+                        if !has_app {
+                            let _ = find_apps_recursive(&path, apps);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
 #[tauri::command]
-fn list_apps() -> Vec<String> {
+fn list_apps() -> Vec<AppInfo> {
     let mut apps = Vec::new();
 
     let app_dirs = vec![
@@ -35,46 +89,30 @@ fn list_apps() -> Vec<String> {
     ];
 
     for dir in app_dirs {
-        if let Ok(entries) = fs::read_dir(dir) {
-            for entry in entries.flatten() {
-                let path = entry.path();
-                if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-                    if name.ends_with(".app") {
-                        // Strip ".app" extension for cleaner display
-                        apps.push(name.trim_end_matches(".app").to_string());
-                    }
-                }
-            }
-        }
+        let _ = find_apps_recursive(&dir, &mut apps);
     }
 
-    apps.sort();
+    // Sort by app name for consistent ordering
+    apps.sort_by(|a, b| a.name.cmp(&b.name));
     apps
 }
 
 #[tauri::command]
-fn launch_app(app_name: String) -> Result<String, String> {
-    let locations = vec![
-        format!("/Applications/{}.app", app_name),
-        format!("/System/Applications/{}.app", app_name),
-    ];
-
-    for app_path in locations {
-        if Path::new(&app_path).exists() {
-            let status = Command::new("open")
-                .arg(&app_path)
-                .status()
-                .map_err(|e| format!("Failed to launch {}: {}", app_name, e))?;
-
-            if status.success() {
-                return Ok(format!("App '{}' opened", app_name));
-            } else {
-                return Err(format!("Failed to open '{}': exited with non-zero code", app_name));
-            }
-        }
+fn launch_app(app_path: String) -> Result<String, String> {
+    if !Path::new(&app_path).exists() {
+        return Err(format!("App not found at '{}'", app_path));
     }
 
-    Err(format!("App '{}' not found in standard locations", app_name))
+    let status = Command::new("open")
+        .arg(&app_path)
+        .status()
+        .map_err(|e| format!("Failed to launch app: {}", e))?;
+
+    if status.success() {
+        Ok("App opened successfully".to_string())
+    } else {
+        Err("Failed to open app: exited with non-zero code".to_string())
+    }
 }
 
 #[tauri::command]
@@ -98,7 +136,11 @@ fn load_color_config() -> ColorConfig {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![launch_app, list_apps, load_color_config])
+        .invoke_handler(tauri::generate_handler![
+            launch_app,
+            list_apps,
+            load_color_config
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

@@ -4,8 +4,13 @@
     import { onMount } from "svelte";
     import "./global.css";
 
+    interface AppInfo {
+        name: string;
+        path: string;
+    }
+
     let appName: string = $state("");
-    let apps: string[] = $state([]);
+    let apps: AppInfo[] = $state([]);
     let selectedIndex: number = $state(0);
 
     let colors: {
@@ -17,7 +22,7 @@
     };
 
     onMount(async () => {
-        apps = await invoke<string[]>("list_apps");
+        apps = await invoke<AppInfo[]>("list_apps");
 
         colors = await invoke("load_color_config");
         for (const [key, value] of Object.entries(colors)) {
@@ -25,13 +30,13 @@
         }
     });
 
-    function filteredApps(): string[] {
+    function filteredApps(): AppInfo[] {
         return apps.filter((app) =>
-            app.toLowerCase().includes(appName.toLowerCase()),
+            app.name.toLowerCase().includes(appName.toLowerCase()),
         );
     }
 
-    function visibleApps(): string[] {
+    function visibleApps(): AppInfo[] {
         const visibleCount = 5;
         const start = Math.max(0, selectedIndex - Math.floor(visibleCount / 2));
         return filteredApps().slice(start, start + visibleCount);
@@ -47,7 +52,7 @@
         const full = filteredApps();
         const selectedApp = full[selectedIndex];
         if (selectedApp) {
-            await invoke("launch_app", { appName: selectedApp });
+            await invoke("launch_app", { appPath: selectedApp.path });
             await getCurrentWindow().close();
         }
     }
@@ -102,7 +107,7 @@
 <ul id="app_list">
     {#each visibleApps() as app, i}
         <li class:selected={i + visibleOffset() === selectedIndex}>
-            {app}
+            {app.name}
         </li>
     {/each}
 </ul>
