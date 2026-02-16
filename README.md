@@ -58,6 +58,5 @@ Spotify = "spicetify auto"
 ```
 
 ### Coming (Hopefully)
-- Support for other system apps (Mostly finder)
 - Other features (translations, calculator, maybe files)
 - Customization (other than color, like UI style)

@@ -93,6 +93,7 @@ fn list_apps() -> Vec<AppInfo> {
     let app_dirs = vec![
         PathBuf::from("/Applications"),
         PathBuf::from("/System/Applications"),
+        PathBuf::from("/System/Library/CoreServices"),
     ];
 
     for dir in app_dirs {
