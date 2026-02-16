@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
@@ -23,6 +24,12 @@ impl Default for ColorConfig {
             selected_text: "#1e1e2e".to_string(),
         }
     }
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone, Default)]
+pub struct MofiConfig {
+    pub colors: Option<ColorConfig>,
+    pub aliases: Option<HashMap<String, String>>,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
@@ -98,7 +105,17 @@ fn list_apps() -> Vec<AppInfo> {
 }
 
 #[tauri::command]
-fn launch_app(app_path: String) -> Result<String, String> {
+fn launch_app(app_path: String, app_name: String) -> Result<String, String> {
+    let config = load_mofi_config();
+    if let Some(aliases) = config.aliases {
+        if let Some((_, command)) = aliases
+            .iter()
+            .find(|(name, _)| name.eq_ignore_ascii_case(&app_name))
+        {
+            return run_alias_command(command);
+        }
+    }
+
     if !Path::new(&app_path).exists() {
         return Err(format!("App not found at '{}'", app_path));
     }
@@ -117,18 +134,47 @@ fn launch_app(app_path: String) -> Result<String, String> {
 
 #[tauri::command]
 fn load_color_config() -> ColorConfig {
+    let config = load_mofi_config();
+    config.colors.unwrap_or_default()
+}
+
+fn load_mofi_config() -> MofiConfig {
     let home_dir = match std::env::var("HOME") {
         Ok(home) => home,
-        Err(_) => return ColorConfig::default(),
+        Err(_) => return MofiConfig::default(),
     };
 
-    let mut config_path = PathBuf::from(home_dir);
-    config_path.push(".config/mofi/colors.toml");
+    let mut config_path = PathBuf::from(home_dir.clone());
+    config_path.push(".config/mofi/mofi.toml");
 
-    if let Ok(contents) = fs::read_to_string(&config_path) {
-        toml::from_str::<ColorConfig>(&contents).unwrap_or_else(|_| ColorConfig::default())
+    let mut config = if let Ok(contents) = fs::read_to_string(&config_path) {
+        toml::from_str::<MofiConfig>(&contents).unwrap_or_default()
     } else {
-        ColorConfig::default()
+        MofiConfig::default()
+    };
+
+    if config.colors.is_none() {
+        let mut colors_path = PathBuf::from(home_dir.clone());
+        colors_path.push(".config/mofi/colors.toml");
+        if let Ok(contents) = fs::read_to_string(&colors_path) {
+            config.colors = toml::from_str::<ColorConfig>(&contents).ok();
+        }
+    }
+
+    config
+}
+
+fn run_alias_command(command: &str) -> Result<String, String> {
+    let status = Command::new("sh")
+        .arg("-c")
+        .arg(command)
+        .status()
+        .map_err(|e| format!("Failed to run alias command: {}", e))?;
+
+    if status.success() {
+        Ok("Command executed successfully".to_string())
+    } else {
+        Err("Alias command failed: exited with non-zero code".to_string())
     }
 }
 

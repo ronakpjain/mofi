@@ -52,7 +52,10 @@
         const full = filteredApps();
         const selectedApp = full[selectedIndex];
         if (selectedApp) {
-            await invoke("launch_app", { appPath: selectedApp.path });
+            await invoke("launch_app", {
+                appPath: selectedApp.path,
+                appName: selectedApp.name,
+            });
             await getCurrentWindow().close();
         }
     }

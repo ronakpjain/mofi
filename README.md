@@ -43,14 +43,18 @@ npm run tauri build
 
 ### Configuration
 
-Colors defined in .config/mofi/colors.toml, default:
+Primary config in .config/mofi/mofi.toml (supports colors + aliases). Colors still fall back to .config/mofi/colors.toml if not provided.
 
 ```toml
+[colors]
 background = "#1e1e2e"
 border = "#fab387"
 text = "#fab387"
 selected_bg = "#fab387"
 selected_text = "#1e1e2e"
+
+[aliases]
+Spotify = "spicetify auto"
 ```
 
 ### Coming (Hopefully)
