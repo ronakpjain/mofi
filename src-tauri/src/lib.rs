@@ -4,6 +4,12 @@ use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
 use std::process::Command;
+use tauri::{
+    menu::{MenuBuilder, MenuItemBuilder},
+    tray::TrayIconBuilder,
+    Manager,
+};
+use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct ColorConfig {
@@ -183,6 +189,58 @@ fn run_alias_command(command: &str) -> Result<String, String> {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
+        .setup(|app| {
+            // --- macOS Agent App (no dock icon) ---
+            #[cfg(target_os = "macos")]
+            app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+
+            // --- System Tray Setup ---
+            let quit_item = MenuItemBuilder::with_id("quit", "Quit").build(app)?;
+            let menu = MenuBuilder::new(app).item(&quit_item).build()?;
+
+            // Load tray icon from embedded PNG
+            let tray_icon_bytes = include_bytes!("../icons/tray-icon.png");
+            let img = image::load_from_memory(tray_icon_bytes)
+                .expect("Failed to load tray icon")
+                .into_rgba8();
+            let width = img.width();
+            let height = img.height();
+            let rgba = img.into_raw();
+            let icon = tauri::image::Image::new_owned(rgba, width, height);
+
+            let _tray = TrayIconBuilder::new()
+                .icon(icon)
+                .menu(&menu)
+                .tooltip("mofi")
+                .on_menu_event(|app, event| match event.id().as_ref() {
+                    "quit" => {
+                        app.exit(0);
+                    }
+                    _ => {}
+                })
+                .build(app)?;
+            eprintln!("[mofi] Tray icon created");
+
+            // --- Global Shortcut: Option+R ---
+            app.global_shortcut()
+                .on_shortcut("Alt+R", |app, _shortcut, event| {
+                    eprintln!("[mofi] Shortcut triggered, state: {:?}", event.state);
+                    if event.state == ShortcutState::Pressed {
+                        if let Some(window) = app.get_webview_window("main") {
+                            if window.is_visible().unwrap_or(false) {
+                                let _ = window.hide();
+                            } else {
+                                let _ = window.show();
+                                let _ = window.set_focus();
+                            }
+                        }
+                    }
+                })?;
+            eprintln!("[mofi] Global shortcut Alt+R registered");
+
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             launch_app,
             list_apps,

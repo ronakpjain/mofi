@@ -56,7 +56,7 @@
                 appPath: selectedApp.path,
                 appName: selectedApp.name,
             });
-            await getCurrentWindow().close();
+            await getCurrentWindow().hide();
         }
     }
 
@@ -87,7 +87,7 @@
                 launchSelected();
                 break;
             case "Escape":
-                getCurrentWindow().close();
+                getCurrentWindow().hide();
                 break;
             default:
                 if (/^[a-zA-Z]$/.test(event.key)) {
