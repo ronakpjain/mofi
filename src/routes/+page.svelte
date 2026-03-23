@@ -56,6 +56,8 @@
                 appPath: selectedApp.path,
                 appName: selectedApp.name,
             });
+            appName = "";
+            selectedIndex = 0;
             await getCurrentWindow().hide();
         }
     }
@@ -87,6 +89,8 @@
                 launchSelected();
                 break;
             case "Escape":
+                appName = "";
+                selectedIndex = 0;
                 getCurrentWindow().hide();
                 break;
             default:
