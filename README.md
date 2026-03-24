@@ -14,17 +14,18 @@ A spotlight replacement.
 
 ### Prerequisites
 
-- [Node.js](https://nodejs.org/) (v14+ recommended)
-- [npm](https://www.npmjs.com/) or [yarn](https://yarnpkg.com/)
+- [Bun](https://bun.sh/) (recommended package manager/runtime)
 - [Rust](https://www.rust-lang.org/tools/install) (required by Tauri)
 - [Tauri CLI v2](https://tauri.app/v2/guides/getting-started/prerequisites/)
+
+> This app is macOS-only.
 
 ### Installation
 
 ```bash
 git clone https://github.com/ronakpjain/mofi.git
 cd mofi
-npm install
+bun install
 ```
 
 ### Development
@@ -32,13 +33,19 @@ npm install
 To start the app in development mode:
 
 ```bash
-npm run tauri dev
+bun run tauri dev
+```
+
+Frontend-only dev server:
+
+```bash
+bun run dev
 ```
 
 ### Building for Production
 
 ```bash
-npm run tauri build
+bun run tauri build
 ```
 
 ### Configuration

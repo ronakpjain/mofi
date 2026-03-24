@@ -181,14 +181,11 @@ fn run_alias_command(command: &str) -> Result<String, String> {
     Ok("Command executed successfully".to_string())
 }
 
-#[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .setup(|app| {
             // --- macOS Agent App (no dock icon) ---
-            #[cfg(target_os = "macos")]
             app.set_activation_policy(tauri::ActivationPolicy::Accessory);
 
             // --- System Tray Setup ---
