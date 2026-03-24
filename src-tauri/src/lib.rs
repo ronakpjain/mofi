@@ -172,17 +172,13 @@ fn load_mofi_config() -> MofiConfig {
 }
 
 fn run_alias_command(command: &str) -> Result<String, String> {
-    let status = Command::new("sh")
+    Command::new("sh")
         .arg("-c")
         .arg(command)
-        .status()
+        .spawn()
         .map_err(|e| format!("Failed to run alias command: {}", e))?;
 
-    if status.success() {
-        Ok("Command executed successfully".to_string())
-    } else {
-        Err("Alias command failed: exited with non-zero code".to_string())
-    }
+    Ok("Command executed successfully".to_string())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
